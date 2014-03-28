@@ -1,0 +1,90 @@
+- hosts: 127.0.0.1
+  connection: local
+  #gather_facts: no
+  user: vagrant
+  vars:
+    mysql_root_password: 'user'
+    git_username: Ralph Reid
+    git_email: "ralph.reid@pod-point.com"
+    mysql_main_user_username: user
+    mysql_main_database: learnzf2
+    mysql_main_user_password: user
+    # mysql_main_import_file: /vagrant/main.sql
+  tasks:
+
+  - name: "SSH: Add GitHub Known"
+    shell: ssh-keyscan -H github.com > ~/.ssh/known_hosts
+
+  - name: "GIT: Install"
+    apt: state=present pkg=git
+    sudo: true
+
+  - name: "GIT: Username and Password"
+    shell: git config --global user.name {{git_username}} ; git config --global user.email {{git_email}}
+
+  - name: "VIM: Install"
+    apt: state=present pkg=vim
+    sudo: true
+
+  - name: "MySQL: Setup Root U/P"
+    shell: echo mysql-server-5.5 mysql-server/root_password password {{mysql_root_password}} | debconf-set-selections; echo mysql-server-5.5 mysql-server/root_password_again password {{mysql_root_password}} | debconf-set-selections; 
+    sudo: true
+
+  - name: "MySQL: Install"
+    apt: state=present pkg=mysql-server
+    sudo: true
+
+  - name: "MySQL: Python Module (for creation import)"
+    apt: state=present pkg=python-mysqldb
+    sudo: true
+
+  - name: "MySQL: Create Database"
+    mysql_db: name={{mysql_main_database}} state=present login_user=root login_password={{mysql_root_password}}
+    # notify: "MySQL: Import Database"
+
+  - name: "MySQL: Create User"
+    mysql_user: name={{mysql_main_user_username}} password={{mysql_main_user_password}} priv={{mysql_main_database}}.*:ALL state=present login_user=root login_password={{mysql_root_password}}
+
+  - name: "Apache2: Install"
+    apt: state=present pkg=apache2
+    sudo: true
+
+  - name: "Apache2: Webroot"
+    shell: rm -rf /var/www; ln -fs /vagrant/web /var/www
+    sudo: true
+
+  # - name: "Apache2: Mod Rewrite"
+  #   shell: sudo a2enmod rewrite
+  #   sudo: true
+
+  # - name: "Apache2: Allow Redirects"
+  #   lineinfile: dest=/etc/apache2/sites-available/000-default regexp="AllowOverride None" line="AllowOverride All"
+
+  - name: "PHP5: CLI Install"
+    apt: state=present pkg=php5-cli
+    sudo: true
+
+  - name: "PHP5: Apache Module"
+    apt: state=present pkg=libapache2-mod-php5
+    sudo: true
+
+  - name: "PHP5: Mysql Driver"
+    apt: state=present pkg=php5-mysql
+    sudo: true
+
+  - name: "PHP5: CLI Install"
+    apt: state=present pkg=php5-gd
+    sudo: true
+
+  # - name: "MS Core Fonts: License Agreement"
+  #   shell: echo ttf-mscorefonts-installer msttcorefonts/accepted-mscorefonts-eula select true | debconf-set-selections
+
+  # - name: "MS Core Fonts: Install"
+  #   apt: state=present pkg=ttf-mscorefonts-installer
+
+  - name: "SSH: Keys"
+    shell: "mkdir ~/.ssh; cp /vagrant/id_rsa.pub ~/.ssh/ ; cp /vagrant/id_rsa ~/.ssh ; chmod 700 ~/.ssh ; chmod 600 ~/.ssh/*"
+
+  # handlers:
+  # - name: "MySQL: Import Database"
+  #   shell: cat {{mysql_main_import_file}} | mysql -u{{mysql_main_user_username}} -p{{mysql_main_user_password}} {{mysql_main_database}}
